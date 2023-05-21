@@ -16,6 +16,7 @@ def reorder_points(points):
 
     return [min_lat_point, min_lon_point, max_lat_point, max_lon_point]
 
+
 def create_grid(zone, resolution, zone_polygon):
     min_lat, min_lon = np.inf, np.inf
     max_lat, max_lon = -np.inf, -np.inf
@@ -38,33 +39,41 @@ def create_grid(zone, resolution, zone_polygon):
 
     for i in range(resolution):
         for j in range(resolution):
-            def process_cell(lon_start, lon_end, lat_start, lat_end):
-                cell = [(lon_start, lat_start), (lon_start, lat_end), 
-                        (lon_end, lat_end), (lon_end, lat_start), 
-                        (lon_start, lat_start)]
-                cell_polygon = Polygon(cell)
-                centroid = cell_polygon.centroid
+            cell = [(lat_range[i], lon_range[j]), 
+                    (lat_range[i + 1], lon_range[j]), 
+                    (lat_range[i + 1], lon_range[j + 1]), 
+                    (lat_range[i], lon_range[j + 1]),
+                    (lat_range[i], lon_range[j])]
 
-                if zone_polygon.contains(centroid):
-                    grid.append(cell)
-                    centroids.append((centroid.x, centroid.y))
-                    return True
-                return False
-
-            if not process_cell(lon_range[j], lon_range[j + 1], lat_range[i], lat_range[i + 1]):
+            cell_polygon = Polygon(cell)
+            centroid = cell_polygon.centroid
+            if not zone_polygon.contains(centroid):
                 sub_resolution = 10
                 sub_lat_step = lat_step / sub_resolution
                 sub_lon_step = lon_step / sub_resolution
 
+                flag = False
                 for m in range(sub_resolution):
                     for n in range(sub_resolution):
-                        if process_cell(lon_range[j] + n * sub_lon_step,
-                                        lon_range[j] + (n + 1) * sub_lon_step,
-                                        lat_range[i] + m * sub_lat_step,
-                                        lat_range[i] + (m + 1) * sub_lat_step):
+                        sub_cell = [(lat_range[i] + m * sub_lat_step, lon_range[j] + n * sub_lon_step),
+                                    (lat_range[i] + (m + 1) * sub_lat_step, lon_range[j] + n * sub_lon_step),
+                                    (lat_range[i] + (m + 1) * sub_lat_step, lon_range[j] + (n + 1) * sub_lon_step),
+                                    (lat_range[i] + m * sub_lat_step, lon_range[j] + (n + 1) * sub_lon_step),
+                                    (lat_range[i] + m * sub_lat_step, lon_range[j] + n * sub_lon_step)]
+                        sub_cell_polygon = Polygon(sub_cell)
+                        sub_centroid = sub_cell_polygon.centroid
+                        if zone_polygon.contains(sub_centroid):
+                            grid.append(cell)
+                            centroids.append((sub_centroid.x,sub_centroid.y))
+                            flag = True
                             break
+                    if flag:
+                        break
+            else:
+                grid.append(cell)
+                centroids.append((centroid.x,centroid.y))
 
-    return grid,centroids
+    return grid, centroids
 
 def angle(start, end):
     delta_lat = end[0] - start[0]

@@ -40,12 +40,10 @@ grid.forEach(cell => {
     L.polygon(swappedCell, { color: 'blue' }).addTo(map);
 });
 
-
+console.log(centroids.length);
 // Add centroids to the map
 centroids.forEach(centroid => {
-    let lat = centroid[1];
-    let lon = centroid[0];
-    L.marker([lat, lon]).addTo(map);
+    L.marker(centroid).addTo(map);
 });
 
 function obuCall() {
@@ -104,10 +102,8 @@ function reorderPoints(points) {
     if (points.length > 0) {
         maxLonPoint = points[0];
     }
-
     return [minLatPoint, minLonPoint, maxLatPoint, maxLonPoint];
 }
-
 
 function createGrid(zone, resolution, zone_polygon) {
     let min_lat = Infinity, min_lon = Infinity, max_lat = -Infinity, max_lon = -Infinity;
@@ -131,49 +127,50 @@ function createGrid(zone, resolution, zone_polygon) {
 
     for (let i = 0; i < resolution; i++) {
         for (let j = 0; j < resolution; j++) {
-            const processCell = (lon_start, lon_end, lat_start, lat_end) => {
-                let cell = [
-                    [lon_start, lat_start],
-                    [lon_start, lat_end],
-                    [lon_end, lat_end],
-                    [lon_end, lat_start],
-                    [lon_start, lat_start]
-                ];
+            let cell = [
+                [lon_range[j], lat_range[i]],
+                [lon_range[j], lat_range[i + 1]],
+                [lon_range[j + 1], lat_range[i + 1]],
+                [lon_range[j + 1], lat_range[i]],
+                [lon_range[j], lat_range[i]]
+            ];
+            let cellPolygon = turf.polygon([cell]);
+            let centroid = turf.centroid(cellPolygon);
 
-                let cellPolygon = turf.polygon([cell]);
-                let centroid = turf.centroid(cellPolygon);
-
-                if (turf.booleanPointInPolygon(centroid, zone_polygon)) {
-                    grid.push(cell);
-                    centroids.push([centroid.geometry.coordinates[0], centroid.geometry.coordinates[1]]);
-                    return true;
-                }
-                return false;
-            }
-
-            if (!processCell(lon_range[j], lon_range[j + 1], lat_range[i], lat_range[i + 1])) {
+            if (!turf.booleanPointInPolygon(centroid, zone_polygon)) {
                 let subResolution = 10;
                 let subLatStep = lat_step / subResolution;
                 let subLonStep = lon_step / subResolution;
-
-                for (let m = 0; m < subResolution; m++) {
+                outer: for (let m = 0; m < subResolution; m++) {
                     for (let n = 0; n < subResolution; n++) {
-                        if (processCell(
-                            lon_range[j] + n * subLonStep,
-                            lon_range[j] + (n + 1) * subLonStep,
-                            lat_range[i] + m * subLatStep,
-                            lat_range[i] + (m + 1) * subLatStep)) {
-                            break;
+                        let subCell = [
+                            [lon_range[j] + n * subLonStep, lat_range[i] + m * subLatStep],
+                            [lon_range[j] + n * subLonStep, lat_range[i] + (m + 1) * subLatStep],
+                            [lon_range[j] + (n + 1) * subLonStep, lat_range[i] + (m + 1) * subLatStep],
+                            [lon_range[j] + (n + 1) * subLonStep, lat_range[i] + m * subLatStep],
+                            [lon_range[j] + n * subLonStep, lat_range[i] + m * subLatStep]
+                        ];
+                        let subCellPolygon = turf.polygon([subCell]);
+                        let subCentroid = turf.centroid(subCellPolygon);
+                        if (turf.booleanPointInPolygon(subCentroid, zone_polygon)) {
+                            grid.push(cell);
+                            centroids.push([subCentroid.geometry.coordinates[1], subCentroid.geometry.coordinates[0]]);
+                            break outer;
                         }
                     }
                 }
+            }
+            else{
+                grid.push(cell);
+                centroids.push([centroid.geometry.coordinates[1], centroid.geometry.coordinates[0]]);
             }
         }
     }
 
     return {grid, centroids};
 }
-
+/*
 $(document).ready(function () {
     setInterval(obuCall, 1000);
 });
+*/

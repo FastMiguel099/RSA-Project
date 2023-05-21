@@ -38,33 +38,41 @@ def create_grid(zone, resolution, zone_polygon):
 
     for i in range(resolution):
         for j in range(resolution):
-            def process_cell(lon_start, lon_end, lat_start, lat_end):
-                cell = [(lon_start, lat_start), (lon_start, lat_end), 
-                        (lon_end, lat_end), (lon_end, lat_start), 
-                        (lon_start, lat_start)]
-                cell_polygon = Polygon(cell)
-                centroid = cell_polygon.centroid
+            cell = [(lat_range[i], lon_range[j]), 
+                    (lat_range[i + 1], lon_range[j]), 
+                    (lat_range[i + 1], lon_range[j + 1]), 
+                    (lat_range[i], lon_range[j + 1]),
+                    (lat_range[i], lon_range[j])]
 
-                if zone_polygon.contains(centroid):
-                    grid.append(cell)
-                    centroids.append((centroid.x, centroid.y))
-                    return True
-                return False
-
-            if not process_cell(lon_range[j], lon_range[j + 1], lat_range[i], lat_range[i + 1]):
+            cell_polygon = Polygon(cell)
+            centroid = cell_polygon.centroid
+            if not zone_polygon.contains(centroid):
                 sub_resolution = 10
                 sub_lat_step = lat_step / sub_resolution
                 sub_lon_step = lon_step / sub_resolution
 
+                flag = False
                 for m in range(sub_resolution):
                     for n in range(sub_resolution):
-                        if process_cell(lon_range[j] + n * sub_lon_step,
-                                        lon_range[j] + (n + 1) * sub_lon_step,
-                                        lat_range[i] + m * sub_lat_step,
-                                        lat_range[i] + (m + 1) * sub_lat_step):
+                        sub_cell = [(lat_range[i] + m * sub_lat_step, lon_range[j] + n * sub_lon_step),
+                                    (lat_range[i] + (m + 1) * sub_lat_step, lon_range[j] + n * sub_lon_step),
+                                    (lat_range[i] + (m + 1) * sub_lat_step, lon_range[j] + (n + 1) * sub_lon_step),
+                                    (lat_range[i] + m * sub_lat_step, lon_range[j] + (n + 1) * sub_lon_step),
+                                    (lat_range[i] + m * sub_lat_step, lon_range[j] + n * sub_lon_step)]
+                        sub_cell_polygon = Polygon(sub_cell)
+                        sub_centroid = sub_cell_polygon.centroid
+                        if zone_polygon.contains(sub_centroid):
+                            grid.append(cell)
+                            centroids.append((sub_centroid.x,sub_centroid.y))
+                            flag = True
                             break
+                    if flag:
+                        break
+            else:
+                grid.append(cell)
+                centroids.append((centroid.x,centroid.y))
 
-    return grid,centroids
+    return grid, centroids
 
 def assign_cells(grid, centroids, num_devices):
     kmeans = KMeans(n_clusters=num_devices, random_state=0).fit(centroids)
@@ -138,14 +146,14 @@ zone = [(37.87694, -25.78116), (37.87091, -25.77317),
         (37.8703, -25.78948), (37.86342, -25.78214)]
 
 zone = reorder_points(zone)
-
 visibility_radius = 50  # 100 meters of radius
-resolution = calculate_resolution(zone, visibility_radius)
+#resolution = calculate_resolution(reorder_points(zone), visibility_radius)
+resolution = 10
 num_devices = 3
 zone_polygon = Polygon(zone)
 grid, centroids = create_grid(zone, resolution, zone_polygon)
+print(centroids)
 device_cells, device_centroids = assign_cells(grid, centroids, num_devices)
-
 device_paths = generate_paths(device_centroids)
 
 visualize_paths(zone, grid,device_paths)
