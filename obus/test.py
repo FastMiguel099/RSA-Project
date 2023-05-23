@@ -1,7 +1,5 @@
 import numpy as np, threading, time, random
-import matplotlib.pyplot as plt
-import geopandas as gpd
-from shapely.geometry import Polygon, LineString, Point
+from shapely.geometry import Polygon
 from geographiclib.geodesic import Geodesic
 
 def find_closest_point(current_position, points):
@@ -10,6 +8,21 @@ def find_closest_point(current_position, points):
 def calculate_distance(point1, point2):
     return Geodesic.WGS84.Inverse(point1[0], point1[1], point2[0], point2[1])['s12']
 
+def navigate_to_point(start_point, destination_point,max_step_distance=10):
+    geod = Geodesic.WGS84
+    current_position = start_point
+    
+    while True:    
+        result = geod.Inverse(*current_position, *destination_point)
+        distance, bearing = result['s12'], result['azi1']
+        step_distance = min(max_step_distance, distance)
+
+        result = geod.Direct(*current_position, bearing, step_distance)
+        current_position = (result['lat2'], result['lon2'])
+        if (distance - step_distance) == 0:
+            break
+
+    return current_position
 def reorder_points(points):
     min_lat_point = min(points, key=lambda x: x[0])
     max_lat_point = max(points, key=lambda x: x[0])
@@ -80,28 +93,27 @@ def create_grid(zone, resolution, zone_polygon):
 
     return grid, centroids
 
-def find_closest_unclaimed_cell(device_id, current_position, cells, claimed_cells):
-    unclaimed_cells = [c for c in cells if c not in claimed_cells]
-    if not unclaimed_cells:
+def find_closest_unclaimed_cell(device_id, current_position, centroids, claimed_centroids):
+    unclaimed_centroids = [c for c in centroids if c not in claimed_centroids]
+    if not unclaimed_centroids:
         return None
 
-    closest_cell = find_closest_point(current_position, unclaimed_cells)
-    claimed_cells.append(closest_cell)
-    print(f"Device {device_id} claimed cell {closest_cell}")
-    return closest_cell
+    closest_centroid = find_closest_point(current_position, unclaimed_centroids)
+    claimed_centroids.append(closest_centroid)
+    print(f"Device {device_id} claimed cell {closest_centroid}")
+    return closest_centroid
 
-def device_routine(device_id, start_position, cells, claimed_cells):
+def device_routine(device_id, start_position, centroids, claimed_centroids):
     current_position = start_position
-    path = [Point(start_position)]
     while True:
-        closest_cell = find_closest_unclaimed_cell(device_id, current_position, cells, claimed_cells)
-        if closest_cell is None:
+        closest_centroid = find_closest_unclaimed_cell(device_id, current_position, centroids, claimed_centroids)
+        if closest_centroid is None:
             print(f"Device {device_id} finished patrolling")
             break
 
         # Simulate the time it takes for the device to move to the new cell
         time.sleep(random.uniform(0.1, 0.5))
-        current_position = closest_cell
+        current_position = navigate_to_point(current_position, closest_centroid)
 
 
 zone = reorder_points([(37.87694, -25.78116), (37.87091, -25.77317),
@@ -118,7 +130,7 @@ grid, centroids = create_grid(zone, resolution, zone_polygon)
 # Assume you have a list of starting positions for the devices
 device_positions = [(37.87091, -25.77317), (37.87694, -25.78116)]
 
-claimed_cells = []
+claimed_centroids = []
 for i, position in enumerate(device_positions):
-    threading.Thread(target=device_routine, args=(i, position, centroids, claimed_cells)).start()
+    threading.Thread(target=device_routine, args=(i, position, centroids, claimed_centroids)).start()
 
