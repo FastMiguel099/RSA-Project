@@ -27,48 +27,9 @@ var initialMarkers = [
 
 var polygon = L.polygon(reorderPoints(initialMarkers), {color: 'red', fill: false}).addTo(map);
 
-var markers = [];
 
-let resolution = 10;  
-
-let {grid, centroids} = createGrid(reorderPoints(initialMarkers), resolution, polygon.toGeoJSON());
-
-
-// Add grid to the map
-grid.forEach(cell => {
-    let swappedCell = cell.map(coord => [coord[1], coord[0]]);
-    L.polygon(swappedCell, { color: 'blue' }).addTo(map);
-});
-
-console.log(centroids.length);
-// Add centroids to the map
-centroids.forEach(centroid => {
-    L.marker(centroid).addTo(map);
-});
-
-function obuCall() {
-    $(document).ready(function(){
-
-        $.ajax({
-            url: '',
-            type: 'get',
-            contentType: 'application/json',
-            dataType: 'json',
-            success: function(response){
-                markers.forEach(delMarker)
-                let i=0;
-                for(var key in response){
-                    markers[i] = L.marker([ response[key]["latitude"], response[key]["longitude"]], {icon: obuIcon}).addTo(map).bindTooltip(key, {permanent: false});
-                    i++;
-                } 
-            }
-        })
-
-    })
-}
-
-function delMarker(value, index, array){
-    map.removeLayer(value)
+for (var marker of initialMarkers) {
+    L.marker(marker, {icon: markerIcon}).addTo(map).bindTooltip(marker.toString(), {permanent: false});
 }
 
 function reorderPoints(points) {
@@ -105,6 +66,51 @@ function reorderPoints(points) {
     return [minLatPoint, minLonPoint, maxLatPoint, maxLonPoint];
 }
 
+var markers = [];
+/*
+let resolution = 10;  
+
+let {grid, centroids} = createGrid(reorderPoints(initialMarkers), resolution, polygon.toGeoJSON());
+
+
+// Add grid to the map
+grid.forEach(cell => {
+    let swappedCell = cell.map(coord => [coord[1], coord[0]]);
+    L.polygon(swappedCell, { color: 'blue' }).addTo(map);
+});
+
+console.log(centroids.length);
+// Add centroids to the map
+centroids.forEach(centroid => {
+    L.marker(centroid).addTo(map);
+});
+*/
+function obuCall() {
+    $(document).ready(function(){
+
+        $.ajax({
+            url: '',
+            type: 'get',
+            contentType: 'application/json',
+            dataType: 'json',
+            success: function(response){
+                markers.forEach(delMarker)
+                let i=0;
+                for(var key in response){
+                    markers[i] = L.marker([ response[key]["latitude"], response[key]["longitude"]], {icon: obuIcon}).addTo(map).bindTooltip(key, {permanent: false});
+                    i++;
+                } 
+            }
+        })
+
+    })
+}
+
+function delMarker(value, index, array){
+    map.removeLayer(value)
+}
+
+/*
 function createGrid(zone, resolution, zone_polygon) {
     let min_lat = Infinity, min_lon = Infinity, max_lat = -Infinity, max_lon = -Infinity;
 
@@ -169,6 +175,8 @@ function createGrid(zone, resolution, zone_polygon) {
 
     return {grid, centroids};
 }
+*/
+
 /*
 $(document).ready(function () {
     setInterval(obuCall, 1000);

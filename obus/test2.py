@@ -1,115 +1,6 @@
-import numpy as np
 from shapely.geometry import Polygon
-from haversine import haversine, Unit
 import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
-
-def reorder_points(points):
-    min_lat_point = min(points, key=lambda x: x[0])
-    max_lat_point = max(points, key=lambda x: x[0])
-    
-    points.remove(min_lat_point)
-    points.remove(max_lat_point)
-
-    min_lon_point = min(points, key=lambda x: x[1])
-    max_lon_point = max(points, key=lambda x: x[1])
-
-    return [min_lat_point, min_lon_point, max_lat_point, max_lon_point]
-
-def create_grid(zone, resolution, zone_polygon):
-    min_lat, min_lon = np.inf, np.inf
-    max_lat, max_lon = -np.inf, -np.inf
-
-    for point in zone:
-        lat, lon = point
-        min_lat = min(min_lat, lat)
-        max_lat = max(max_lat, lat)
-        min_lon = min(min_lon, lon)
-        max_lon = max(max_lon, lon)
-
-    lat_step = (max_lat - min_lat) / resolution
-    lon_step = (max_lon - min_lon) / resolution
-
-    lat_range = [min_lat + i * lat_step for i in range(resolution + 1)]
-    lon_range = [min_lon + i * lon_step for i in range(resolution + 1)]
-
-    grid = []
-    centroids = []
-
-    for i in range(resolution):
-        for j in range(resolution):
-            cell = [(lat_range[i], lon_range[j]), 
-                    (lat_range[i + 1], lon_range[j]), 
-                    (lat_range[i + 1], lon_range[j + 1]), 
-                    (lat_range[i], lon_range[j + 1]),
-                    (lat_range[i], lon_range[j])]
-
-            cell_polygon = Polygon(cell)
-            centroid = cell_polygon.centroid
-            if not zone_polygon.contains(centroid):
-                sub_resolution = 10
-                sub_lat_step = lat_step / sub_resolution
-                sub_lon_step = lon_step / sub_resolution
-
-                flag = False
-                for m in range(sub_resolution):
-                    for n in range(sub_resolution):
-                        sub_cell = [(lat_range[i] + m * sub_lat_step, lon_range[j] + n * sub_lon_step),
-                                    (lat_range[i] + (m + 1) * sub_lat_step, lon_range[j] + n * sub_lon_step),
-                                    (lat_range[i] + (m + 1) * sub_lat_step, lon_range[j] + (n + 1) * sub_lon_step),
-                                    (lat_range[i] + m * sub_lat_step, lon_range[j] + (n + 1) * sub_lon_step),
-                                    (lat_range[i] + m * sub_lat_step, lon_range[j] + n * sub_lon_step)]
-                        sub_cell_polygon = Polygon(sub_cell)
-                        sub_centroid = sub_cell_polygon.centroid
-                        if zone_polygon.contains(sub_centroid):
-                            grid.append(cell)
-                            centroids.append((sub_centroid.x,sub_centroid.y))
-                            flag = True
-                            break
-                    if flag:
-                        break
-            else:
-                grid.append(cell)
-                centroids.append((centroid.x,centroid.y))
-
-    return grid, centroids
-
-def assign_cells(grid, centroids, num_devices):
-    kmeans = KMeans(n_clusters=num_devices, random_state=0).fit(centroids)
-    device_cells = [[] for _ in range(num_devices)]
-    device_centroids = [[] for _ in range(num_devices)]
-    
-    for i, (cell, centroid) in enumerate(zip(grid, centroids)):
-        device_id = kmeans.predict([centroid])[0]
-        device_cells[device_id].append(cell)
-        device_centroids[device_id].append(centroid)
-
-    return device_cells, device_centroids
-
-def generate_paths(device_centroids):
-    device_paths = []
-
-    for centroids in device_centroids:
-        path = []
-        for centroid in centroids:
-            path.append((centroid[0], centroid[1]))
-        device_paths.append(path)
-
-    return device_paths
-
-def calculate_resolution(zone, visibility_radius):
-    latitudes, longitudes = zip(*zone)
-    min_lat, max_lat, min_lon, max_lon = min(latitudes), max(latitudes), min(longitudes), max(longitudes)
-    
-    lat_distance = haversine((min_lat, min_lon), (max_lat, min_lon), unit=Unit.METERS)
-    lon_distance = haversine((min_lat, min_lon), (min_lat, max_lon), unit=Unit.METERS)
-    
-    visible_diameter = 2 * visibility_radius
-    
-    lat_resolution = int(lat_distance / visible_diameter)
-    lon_resolution = int(lon_distance / visible_diameter)
-
-    return max(lat_resolution, lon_resolution)
+from auxiliar_functions import *
 
 def visualize_paths(zone, grid, device_paths):
     fig, ax = plt.subplots()
@@ -146,14 +37,14 @@ zone = [(37.87694, -25.78116), (37.87091, -25.77317),
         (37.8703, -25.78948), (37.86342, -25.78214)]
 
 zone = reorder_points(zone)
-visibility_radius = 50  # 100 meters of radius
-#resolution = calculate_resolution(reorder_points(zone), visibility_radius)
 resolution = 10
 num_devices = 3
 zone_polygon = Polygon(zone)
 grid, centroids = create_grid(zone, resolution, zone_polygon)
-print(centroids)
+
 device_cells, device_centroids = assign_cells(grid, centroids, num_devices)
+
+# Generate the initial paths
 device_paths = generate_paths(device_centroids)
 
-visualize_paths(zone, grid,device_paths)
+visualize_paths(zone, grid, device_paths)
