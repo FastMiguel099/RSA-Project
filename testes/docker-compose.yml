@@ -55,8 +55,13 @@ services:
     hostname: flask
     build: 
       context: ./frontend
+    volumes:
+      - ./frontend/app.py:/app/app.py
+      - ./frontend/static:/app/static
+      - ./frontend/templates:/app/templates
     environment:
       - BROKER_URL=brk2
+      - FLASK_ENV=development
     ports:
       - 5000:5000
     networks:

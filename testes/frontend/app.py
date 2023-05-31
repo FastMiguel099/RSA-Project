@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from flask_mqtt import Mqtt
 from os import getenv
+#import sys
 import json
 
 app = Flask(__name__)
@@ -31,6 +32,7 @@ def handle_mqtt_message(client, userdata, message):
        payload=message.payload.decode()
   )
    print('Received message on topic: {topic} with payload: {payload}'.format(**data))
+   #sys.stdout.flush()
 
 @app.route('/')
 def index():
