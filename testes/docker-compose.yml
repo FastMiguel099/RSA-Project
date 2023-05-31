@@ -1,0 +1,111 @@
+version: '2.4'
+
+services:
+  boat1_broker:
+    hostname: brk1
+    container_name: boat1_broker
+    restart: always
+    image: code.nap.av.it.pt:5050/mobility-networks/vanetza:latest
+    cap_add:
+        - "NET_ADMIN"
+    environment:
+        - VANETZA_STATION_ID=1
+        - VANETZA_STATION_TYPE=17
+        - VANETZA_MAC_ADDRESS=6e:06:e0:03:00:01
+        - VANETZA_INTERFACE=br0
+        - START_EMBEDDED_MOSQUITTO=true
+        - SUPPORT_MAC_BLOCKING=true
+        - VANETZA_CAM_PERIODICITY=0
+    networks:
+        vanetzalan0:
+            ipv4_address: 192.168.98.10
+    sysctls:      
+        kernel.msgmax:  65536
+        kernel.msgmnb:  65536
+    #logging:
+    #  driver: none
+
+
+  boat2_broker:
+    hostname: brk2
+    container_name: boat2_broker
+    restart: always
+    image: code.nap.av.it.pt:5050/mobility-networks/vanetza:latest
+    cap_add:
+        - "NET_ADMIN"
+    environment:
+        - VANETZA_STATION_ID=2
+        - VANETZA_STATION_TYPE=17
+        - VANETZA_MAC_ADDRESS=6e:06:e0:03:00:02
+        - VANETZA_INTERFACE=br0
+        - START_EMBEDDED_MOSQUITTO=true
+        - SUPPORT_MAC_BLOCKING=true
+        - VANETZA_CAM_PERIODICITY=0
+    networks:
+      vanetzalan0:
+        ipv4_address: 192.168.98.11
+    sysctls:      
+        kernel.msgmax:  65536
+        kernel.msgmnb:  65536
+    # logging:
+    #  driver: none
+
+  flask:
+    container_name: flask
+    hostname: flask
+    build: 
+      context: ./frontend
+    environment:
+      - BROKER_URL=brk2
+    ports:
+      - 5000:5000
+    networks:
+      vanetzalan0:
+        ipv4_address: 192.168.98.99
+    depends_on:
+      - boat1_broker
+      - boat2_broker
+    restart: always
+            
+
+  boat1:
+    hostname: boat1
+    container_name: boat1
+    build:
+      context: ./boat
+    environment:
+      - BOAT_ID=1
+      - BROKER_IP=192.168.98.10
+    #image: pub:v1
+    networks:
+      vanetzalan0:
+        ipv4_address: 192.168.98.20
+    # volumes:
+    #   - ./publisher:/app
+    depends_on:
+      - boat1_broker
+    # logging:
+    #   driver: none
+
+  boat2:
+    hostname: boat2
+    container_name: boat2
+    build:
+      context: ./boat
+    environment:
+      - BOAT_ID=2
+      - BROKER_IP=192.168.98.11
+    #image: sub:v1
+    networks:
+            vanetzalan0:
+                ipv4_address: 192.168.98.30
+    # volumes:
+    #   - ./subscriber:/app
+    depends_on:
+      - boat2_broker
+    # logging:
+    #   driver: none
+
+networks:
+  vanetzalan0:
+    external: true
