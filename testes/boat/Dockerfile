@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY boat.py .
 COPY in_denm.json .
+COPY in_cam.json .
 
 CMD ["python3", "-u", "boat.py"]
 

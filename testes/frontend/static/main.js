@@ -1,6 +1,5 @@
-var data = "";
 var map;
-var marker;
+var marker, marker2;
 
 function initMap(){
     map = L.map('map').setView([37.8690, -25.7830], 15);
@@ -50,7 +49,8 @@ function updateLocations(response) {
         map.removeLayer(marker);
     }
     
-    marker = L.marker([response.boats[0].Latitude, response.boats[0].Longitude]).addTo(map);
+    marker = L.marker([response.boats[0].latitude, response.boats[0].longitude]).addTo(map);
+    marker2 = L.marker([response.boats[1].latitude, response.boats[1].longitude]).addTo(map);
     // Update JavaScript variables or elements as needed
     // Example: document.getElementById('result').innerText = response;
 }
@@ -59,7 +59,7 @@ function updateLocations(response) {
 makeRequest();
 
 // Set the interval for periodic requests (every 5 seconds in this example)
-setInterval(makeRequest, 5000);
+setInterval(makeRequest, 400);
 
 
 window.onload = function() {

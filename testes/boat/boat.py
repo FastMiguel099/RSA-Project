@@ -28,8 +28,8 @@ def genCenters(x_min, y_min, x_max, y_max, precision):
             vals.append(( round(x, 5), round(y, 5) ))
     return vals
 
-def calculate_closest(curr, zone):
-    return min(zone, key=lambda point: geodesic(curr, point).m)    
+def calculate_closest(curr, centers):
+    return min(centers, key=lambda point: geodesic(curr, point).m)    
 
 def gen_coords(start, end, step):
     x_displacement = round(end[0] - start[0],5)
@@ -72,22 +72,27 @@ def on_message(client, userdata, msg):
     # lat = message["latitude"]
     # ...
 
-def ganzarina(client, userdate, msg):
-    # message = json.loads(msg.payload.decode('utf-8'))
-    # lat = message["management"]["eventPosition"]["latitude"]
-    # lon = message["management"]["eventPosition"]["longitude"]
+def foreign_discovery(client, userdate, msg):
+    message = json.loads(msg.payload.decode('utf-8'))
+    lat = message['fields']['denm']["management"]["eventPosition"]["latitude"]
+    lon = message['fields']['denm']["management"]["eventPosition"]["longitude"]
+    foreign_point = (lat, lon)
     print("\n\nGanzarina:")
-    #print("Location:", lat, ";", lon, "\n\n")
+    if foreign_point!=curr_point:
+        return
+    
+    cntrs.remove(foreign_point)
+    # TODO: reset cycle
 
 # publish
-def generate(_boat_id):
-    if _boat_id!=1:
+def generate():
+    if boat_id!=1:
         #print("nothing here")
         sleep(1)
         return
     f = open('in_denm.json')
     m = json.load(f)
-    m["management"]["actionID"]["originatingStationID"] = _boat_id
+    m["management"]["actionID"]["originatingStationID"] = boat_id
     # m["latitude"] = 0
     # m["longitude"] = 0
     m = json.dumps(m)
@@ -96,12 +101,47 @@ def generate(_boat_id):
     f.close()
     sleep(3)
 
+def publish_discovery(point):
+    sqnc_no =0
+    f = open('in_denm.json')
+    m = json.load(f)
+    m["management"]["actionID"]["originatingStationID"] = boat_id
+    m["management"]["actionID"]["sequenceNumber"] = sqnc_no
+    #detection time?
+    #reference time?
+    m["management"]["eventPosition"]["latitude"] = point[1]
+    m["management"]["eventPosition"]["longitude"] = point[0]
+    m = json.dumps(m)
+
+    cntrs.remove(point)
+    sqnc_no += 1
+
+    client.publish("vanetza/in/denm",m)
+
+
+def publish_movement(coords):
+    for point in coords:
+        publish_location(point)
+        sleep(1)
+    return point
+    
+
+def publish_location(point):
+    f = open('in_cam.json')
+    m = json.load(f)
+    m["latitude"] = point[1]
+    m["longitude"] = point[0]
+    m["stationID"] = boat_id
+    m = json.dumps(m)
+    client.publish("vanetza/in/cam",m)
+
+
 # coordinates init
 zone = [(37.87400, -25.78800), (37.87400, -25.77800), (37.8640, -25.77800), (37.86400, -25.78800)]
 min_tuple = min(zone, key=lambda tup: tup[1]+tup[0])
 max_tuple = max(zone, key=lambda tup: tup[1]+tup[0])
 cntrs = genCenters(min_tuple[1], min_tuple[0], max_tuple[1], max_tuple[0], 10)
-
+sqnc_no = 0
 #publica no in e recebe no out
 
 # env init
@@ -109,16 +149,15 @@ boat_id = int(getenv('BOAT_ID'))
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
-client.message_callback_add("vanetza/out/denm", ganzarina)
+client.message_callback_add("vanetza/out/denm", foreign_discovery)
 client.connect(getenv('BROKER_IP'), 1883, 60)
 
 # coms init 
 start_point = cntrs[0]  # this var should come from docker-compose, maybe step var should too
-# send denm with current point
+
 curr_point = start_point
-print(cntrs)
-print(curr_point)
-cntrs.remove(start_point)
+publish_location(curr_point)
+publish_discovery(curr_point)
 
 # computing init
 sleep(5)
@@ -127,19 +166,23 @@ threading.Thread(target=client.loop_forever).start()
 
 # looped task
 while(True):
-    # dict = [591, 1281, 12881, 1985]
-    # for a in dict:
-    #     print(a)
-    closest = calculate_closest(curr_point, zone)
+    # TODO: handle empty list of coords
+    closest = calculate_closest(curr_point, cntrs)
     mov_coords = gen_coords(curr_point, closest, 5)
-    generate(boat_id)
+    last_point=publish_movement(mov_coords)
+
+    if closest==last_point:
+        publish_discovery(last_point)
+        curr_point = last_point
+
+    #generate(boat_id)
     sleep(1)
 
 
 
-#start location, send message that discovered square, update sequence nº
+#start location, send message that discovered square, update sequence nº, remove discovered point
 #move to first square
-#send message that discovered square, update sequence nº
+#send message that discovered square, update sequence nº, remove discovered point
 #calculate closest square
 #move to next closest square
 

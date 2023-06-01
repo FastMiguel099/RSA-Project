@@ -9,8 +9,8 @@ services:
     cap_add:
         - "NET_ADMIN"
     environment:
-        - VANETZA_STATION_ID=1
-        - VANETZA_STATION_TYPE=17
+        - VANETZA_STATION_ID=51
+        - VANETZA_STATION_TYPE=15
         - VANETZA_MAC_ADDRESS=6e:06:e0:03:00:01
         - VANETZA_INTERFACE=br0
         - START_EMBEDDED_MOSQUITTO=true
@@ -22,8 +22,8 @@ services:
     sysctls:      
         kernel.msgmax:  65536
         kernel.msgmnb:  65536
-    #logging:
-    #  driver: none
+    logging:
+     driver: json-file
 
 
   boat2_broker:
@@ -34,8 +34,8 @@ services:
     cap_add:
         - "NET_ADMIN"
     environment:
-        - VANETZA_STATION_ID=2
-        - VANETZA_STATION_TYPE=17
+        - VANETZA_STATION_ID=52
+        - VANETZA_STATION_TYPE=15
         - VANETZA_MAC_ADDRESS=6e:06:e0:03:00:02
         - VANETZA_INTERFACE=br0
         - START_EMBEDDED_MOSQUITTO=true
@@ -47,8 +47,8 @@ services:
     sysctls:      
         kernel.msgmax:  65536
         kernel.msgmnb:  65536
-    # logging:
-    #  driver: none
+    logging:
+     driver: json-file
 
   flask:
     container_name: flask
@@ -90,7 +90,7 @@ services:
     depends_on:
       - boat1_broker
     # logging:
-    #   driver: none
+    #   driver: json-file
 
   boat2:
     hostname: boat2
@@ -109,7 +109,7 @@ services:
     depends_on:
       - boat2_broker
     # logging:
-    #   driver: none
+    #   driver: json-file
 
 networks:
   vanetzalan0:

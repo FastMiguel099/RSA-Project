@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from flask_mqtt import Mqtt
 from os import getenv
-#import sys
+import sys
 import json
 
 app = Flask(__name__)
@@ -14,25 +14,38 @@ app.config['MQTT_CLIENT_ID'] = 'flask_api'
 app.config['MQTT_KEEPALIVE'] = 5  # Set KeepAlive time in seconds
 mqtt = Mqtt(app)
 
-Lat, Lon, time = 37.87400, -25.78800, "08:46:36"
-Status, Speed, Course = 0, 0, 0
+data = {'boats': [
+        {'latitude': 0, 'longitude': 0, 'ID': 1},
+        {'latitude': 0, 'longitude': 0, 'ID': 2},
+        {'latitude': 0, 'longitude': 0, 'ID': 3}
+        ]}
 
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
    if rc == 0:
        print('Connected successfully')
-       mqtt.subscribe("vanetza/out/denm") 
+       mqtt.subscribe("vanetza/out/cam") 
    else:
        print('Bad connection. Code:', rc)
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
-   data = dict(
-       topic=message.topic,
-       payload=message.payload.decode()
-  )
-   print('Received message on topic: {topic} with payload: {payload}'.format(**data))
-   #sys.stdout.flush()
+
+    if message.topic=="vanetza/out/cam":
+        payload = json.loads(message.payload.decode())
+        bid = payload["stationID"]
+        lat = payload["latitude"]
+        lon = payload["longitude"]
+
+        data['boats'][bid-1]['latitude']=lat
+        data['boats'][bid-1]['longitude']=lon
+
+        # print(bid, lat, lon, message.topic)
+        # print(data)
+        ##print('Received message on topic: {topic} with payload: {payload}'.format(**data))
+        #sys.stdout.flush()
+    else:
+        print("Unrecongnized topic: " + message.topic)
 
 @app.route('/')
 def index():
@@ -67,16 +80,6 @@ def receive_data():
 @app.route('/get_data', methods=['GET'])
 def send_data():
     # Send boats coordinates to frontend
-    global Lon
-    Lon += 0.00001
-    data = {
-            'boats': [
-                {'Latitude': Lat, 'Longitude': Lon, 'ID': 1},
-                {'Latitude': Lat, 'Longitude': Lon, 'ID': 2},
-                {'Latitude': Lat, 'Longitude': Lon, 'ID': 3}
-                ]
-            }
-
     return json.dumps(data)
 
 if __name__ == '__main__':
