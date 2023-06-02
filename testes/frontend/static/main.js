@@ -1,5 +1,10 @@
 var map;
-var marker, marker2;
+var marker1, marker2, marker3;
+var polyline1, polyline2, polyline3;
+var path1 = [];
+var path2 = [];
+var path3 = [];
+var first = true;
 
 function initMap(){
     map = L.map('map').setView([37.8690, -25.7830], 15);
@@ -45,20 +50,46 @@ function updateLocations(response) {
 
 
     //remove old marker
-    if (marker) {
-        map.removeLayer(marker);
+    if (marker1) {
+        map.removeLayer(marker1);
     }
+
+    // for (boat of response.boats){
+    //     if (boat.latitude==0){
+    //         return;
+    //     }
+    // }
     
-    marker = L.marker([response.boats[0].latitude, response.boats[0].longitude]).addTo(map);
-    marker2 = L.marker([response.boats[1].latitude, response.boats[1].longitude]).addTo(map);
-    // Update JavaScript variables or elements as needed
-    // Example: document.getElementById('result').innerText = response;
+    if(first){
+        marker1 = L.marker([response.boats[0].latitude, response.boats[0].longitude]).addTo(map);
+        marker2 = L.marker([response.boats[1].latitude, response.boats[1].longitude]).addTo(map);
+        marker3 = L.marker([response.boats[2].latitude, response.boats[1].longitude]).addTo(map);
+        first=false;
+    }
+
+    if(response.boats[0].latitude!=0){
+
+    path1.push([response.boats[0].latitude, response.boats[0].longitude]);
+    }
+    if(response.boats[1].latitude!=0){
+
+    path2.push([response.boats[1].latitude, response.boats[1].longitude]);
+    }
+    if(response.boats[2].latitude!=0){
+
+    path3.push([response.boats[2].latitude, response.boats[2].longitude]);
+    }
+
+    
+    polyline1 = L.polyline(path1, { color: 'blue' }).addTo(map);
+    polyline2 = L.polyline(path2, { color: 'red' }).addTo(map);
+    polyline3 = L.polyline(path3, { color: 'green' }).addTo(map);
 }
 
 // Make the initial request
 makeRequest();
 
-// Set the interval for periodic requests (every 5 seconds in this example)
+// Set the interval for periodic requests 
 setInterval(makeRequest, 400);
 
 

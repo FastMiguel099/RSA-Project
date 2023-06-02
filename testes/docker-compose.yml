@@ -23,7 +23,7 @@ services:
         kernel.msgmax:  65536
         kernel.msgmnb:  65536
     logging:
-     driver: json-file
+     driver: none
 
 
   boat2_broker:
@@ -48,7 +48,42 @@ services:
         kernel.msgmax:  65536
         kernel.msgmnb:  65536
     logging:
-     driver: json-file
+     driver: none
+
+  # mosquitto_bridge:
+  #   container_name: bridge
+  #   hostname: bridge
+  #   image: eclipse-mosquitto
+  #   volumes:
+  #     - ./frontend/mosquitto.conf:/mosquitto/config/mosquitto.conf
+  #   networks:
+  #     vanetzalan0:
+  #       ipv4_address: 192.168.98.98
+
+
+  flask_broker:
+    hostname: flsk_brk
+    container_name: flsk_brk
+    restart: always
+    image: code.nap.av.it.pt:5050/mobility-networks/vanetza:latest
+    cap_add:
+        - "NET_ADMIN"
+    environment:
+        - VANETZA_STATION_ID=50
+        - VANETZA_STATION_TYPE=15
+        - VANETZA_MAC_ADDRESS=6e:06:e0:03:00:09
+        - VANETZA_INTERFACE=br0
+        - START_EMBEDDED_MOSQUITTO=true
+        - SUPPORT_MAC_BLOCKING=true
+        - VANETZA_CAM_PERIODICITY=0
+    networks:
+      vanetzalan0:
+        ipv4_address: 192.168.98.12
+    sysctls:      
+        kernel.msgmax:  65536
+        kernel.msgmnb:  65536
+    logging:
+     driver: none
 
   flask:
     container_name: flask
@@ -60,7 +95,7 @@ services:
       - ./frontend/static:/app/static
       - ./frontend/templates:/app/templates
     environment:
-      - BROKER_URL=brk2
+      - BROKER_URL=flsk_brk
       - FLASK_ENV=development
     ports:
       - 5000:5000
@@ -70,6 +105,7 @@ services:
     depends_on:
       - boat1_broker
       - boat2_broker
+      - flask_broker
     restart: always
             
 
@@ -81,6 +117,7 @@ services:
     environment:
       - BOAT_ID=1
       - BROKER_IP=192.168.98.10
+      - START_POINT=-25.7875, 37.8645
     #image: pub:v1
     networks:
       vanetzalan0:
@@ -100,6 +137,7 @@ services:
     environment:
       - BOAT_ID=2
       - BROKER_IP=192.168.98.11
+      - START_POINT=-25.7785, 37.8735
     #image: sub:v1
     networks:
             vanetzalan0:

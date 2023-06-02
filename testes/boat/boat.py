@@ -37,6 +37,7 @@ def gen_coords(start, end, step):
     # print("Moving", x_displacement, "in x axis and", y_displacement, "in y axis" )
     x_step = x_displacement/step
     y_step = y_displacement/step
+    
     crds = []
     new_x = start[0]
     new_y = start[1]
@@ -45,9 +46,9 @@ def gen_coords(start, end, step):
     for i in range (step):
         new_x += x_step
         new_y += y_step
-        crds.append((new_x, new_y))
+        
+        crds.append((round(new_x,5), round(new_y,5)))
 
-    #print(crds)
     return crds
 
 def on_connect(client, userdata, flags, rc):
@@ -76,30 +77,19 @@ def foreign_discovery(client, userdate, msg):
     message = json.loads(msg.payload.decode('utf-8'))
     lat = message['fields']['denm']["management"]["eventPosition"]["latitude"]
     lon = message['fields']['denm']["management"]["eventPosition"]["longitude"]
-    foreign_point = (lat, lon)
-    print("\n\nGanzarina:")
-    if foreign_point!=curr_point:
+    foreign_point = (lon, lat)
+    print("\n\nGanzarina:", foreign_point)
+    if foreign_point==closest:
+        print("Collision iminent!")
+        # TODO
         return
-    
-    cntrs.remove(foreign_point)
-    # TODO: reset cycle
+    if foreign_point in cntrs:
+        cntrs.remove(foreign_point)
+        if not cntrs:
+            print("NOT CNTRS must stop (foreign)")
+            client.loop_stop()
+    # TODO: reset cycle to stop boat from moving to current destination and compute another
 
-# publish
-def generate():
-    if boat_id!=1:
-        #print("nothing here")
-        sleep(1)
-        return
-    f = open('in_denm.json')
-    m = json.load(f)
-    m["management"]["actionID"]["originatingStationID"] = boat_id
-    # m["latitude"] = 0
-    # m["longitude"] = 0
-    m = json.dumps(m)
-    client.publish("vanetza/in/denm",m)
-    print("published->")
-    f.close()
-    sleep(3)
 
 def publish_discovery(point):
     sqnc_no =0
@@ -122,7 +112,8 @@ def publish_discovery(point):
 def publish_movement(coords):
     for point in coords:
         publish_location(point)
-        sleep(1)
+        print("Published current location:", point)
+        sleep(0.5)
     return point
     
 
@@ -153,9 +144,7 @@ client.message_callback_add("vanetza/out/denm", foreign_discovery)
 client.connect(getenv('BROKER_IP'), 1883, 60)
 
 # coms init 
-start_point = cntrs[0]  # this var should come from docker-compose, maybe step var should too
-
-curr_point = start_point
+curr_point = eval(getenv('START_POINT'))  # should come from docker-compose, maybe step var
 publish_location(curr_point)
 publish_discovery(curr_point)
 
@@ -167,17 +156,27 @@ threading.Thread(target=client.loop_forever).start()
 # looped task
 while(True):
     # TODO: handle empty list of coords
+    if not cntrs:
+      print("NOT CNTRS must stop")
+      break
+    
     closest = calculate_closest(curr_point, cntrs)
+    print("Closest point is", closest, "with distance", geodesic(curr_point,closest).m)
     mov_coords = gen_coords(curr_point, closest, 5)
     last_point=publish_movement(mov_coords)
 
+    print("Arrived at closest point:", closest==last_point)
     if closest==last_point:
         publish_discovery(last_point)
         curr_point = last_point
 
     #generate(boat_id)
-    sleep(1)
+    print("Cntrs len:", len(cntrs))
+    sleep(0.5)
 
+print("escaping loop")
+client.loop_stop()
+print("escaped loop")
 
 
 #start location, send message that discovered square, update sequence nº, remove discovered point
