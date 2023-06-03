@@ -50,6 +50,30 @@ services:
     logging:
      driver: none
 
+  boat3_broker:
+    hostname: brk3
+    container_name: boat3_broker
+    restart: always
+    image: code.nap.av.it.pt:5050/mobility-networks/vanetza:latest
+    cap_add:
+        - "NET_ADMIN"
+    environment:
+        - VANETZA_STATION_ID=53
+        - VANETZA_STATION_TYPE=15
+        - VANETZA_MAC_ADDRESS=6e:06:e0:03:00:03
+        - VANETZA_INTERFACE=br0
+        - START_EMBEDDED_MOSQUITTO=true
+        - SUPPORT_MAC_BLOCKING=true
+        - VANETZA_CAM_PERIODICITY=0
+    networks:
+      vanetzalan0:
+        ipv4_address: 192.168.98.12
+    sysctls:      
+        kernel.msgmax:  65536
+        kernel.msgmnb:  65536
+    logging:
+     driver: none
+
   # mosquitto_bridge:
   #   container_name: bridge
   #   hostname: bridge
@@ -78,7 +102,7 @@ services:
         - VANETZA_CAM_PERIODICITY=0
     networks:
       vanetzalan0:
-        ipv4_address: 192.168.98.12
+        ipv4_address: 192.168.98.19
     sysctls:      
         kernel.msgmax:  65536
         kernel.msgmnb:  65536
@@ -105,8 +129,11 @@ services:
     depends_on:
       - boat1_broker
       - boat2_broker
+      - boat3_broker
       - flask_broker
     restart: always
+    # logging:
+    #   driver: none
             
 
   boat1:
@@ -117,7 +144,8 @@ services:
     environment:
       - BOAT_ID=1
       - BROKER_IP=192.168.98.10
-      - START_POINT=-25.7875, 37.8645
+      - START_POINT=-25.7825, 37.8685
+      - MOV_AMNT=5
     #image: pub:v1
     networks:
       vanetzalan0:
@@ -137,8 +165,9 @@ services:
     environment:
       - BOAT_ID=2
       - BROKER_IP=192.168.98.11
-      - START_POINT=-25.7785, 37.8735
-    #image: sub:v1
+      - START_POINT=-25.7825, 37.8695
+      - MOV_AMNT=5
+      #image: sub:v1
     networks:
             vanetzalan0:
                 ipv4_address: 192.168.98.30
@@ -146,6 +175,27 @@ services:
     #   - ./subscriber:/app
     depends_on:
       - boat2_broker
+    # logging:
+    #   driver: json-file
+
+  boat3:
+    hostname: boat3
+    container_name: boat3
+    build:
+      context: ./boat
+    environment:
+      - BOAT_ID=3
+      - BROKER_IP=192.168.98.12
+      - START_POINT=-25.7835, 37.8695
+      - MOV_AMNT=5
+    #image: sub:v1
+    networks:
+            vanetzalan0:
+                ipv4_address: 192.168.98.40
+    # volumes:
+    #   - ./subscriber:/app
+    depends_on:
+      - boat3_broker
     # logging:
     #   driver: json-file
 

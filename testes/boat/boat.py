@@ -32,6 +32,9 @@ def calculate_closest(curr, centers):
     return min(centers, key=lambda point: geodesic(curr, point).m)    
 
 def gen_coords(start, end, step):
+    if step==0:
+        print("Processing starting point")
+        return [end]
     x_displacement = round(end[0] - start[0],5)
     y_displacement = round(end[1] - start[1],5)
     # print("Moving", x_displacement, "in x axis and", y_displacement, "in y axis" )
@@ -56,43 +59,38 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe("vanetza/out/denm")
     # should also subscribe to CAMs
 
-# É chamada automaticamente sempre que recebe uma mensagem nos tópicos subscritos em cima
+
 def on_message(client, userdata, msg):
     print("\n\nUnknown topic: " + msg.topic)
     print(msg.payload.decode('utf-8'), "\n\n")
     return
-    message = json.loads(msg.payload.decode('utf-8'))
-    
-    print("\n\nTopic: " + msg.topic)
-    print("From:", message["management"]["actionID"]["originatingStationID"])
-    lat = message["management"]["eventPosition"]["latitude"]
-    lon = message["management"]["eventPosition"]["longitude"]
-    print("Location:", lat, ";", lon, "\n\n")
-    
 
-    # lat = message["latitude"]
-    # ...
 
 def foreign_discovery(client, userdate, msg):
     message = json.loads(msg.payload.decode('utf-8'))
     lat = message['fields']['denm']["management"]["eventPosition"]["latitude"]
     lon = message['fields']['denm']["management"]["eventPosition"]["longitude"]
     foreign_point = (lon, lat)
-    print("\n\nGanzarina:", foreign_point)
+    print("\nForeign discovery:", foreign_point)
+    global closest, stop_loop
+
+    if not closest:
+        closest=eval(getenv('START_POINT'))
     if foreign_point==closest:
-        print("Collision iminent!")
-        # TODO
+        print("My current destination has already been discovered !")
+        if foreign_point in cntrs:
+        	cntrs.remove(foreign_point)
+        stop_loop = True
         return
     if foreign_point in cntrs:
         cntrs.remove(foreign_point)
         if not cntrs:
             print("NOT CNTRS must stop (foreign)")
-            client.loop_stop()
-    # TODO: reset cycle to stop boat from moving to current destination and compute another
+            stop_loop = True
 
 
 def publish_discovery(point):
-    sqnc_no =0
+    global sqnc_no
     f = open('in_denm.json')
     m = json.load(f)
     m["management"]["actionID"]["originatingStationID"] = boat_id
@@ -103,17 +101,21 @@ def publish_discovery(point):
     m["management"]["eventPosition"]["longitude"] = point[0]
     m = json.dumps(m)
 
-    cntrs.remove(point)
-    sqnc_no += 1
+    if point in cntrs:
+        cntrs.remove(point)
+        sqnc_no += 1
 
     client.publish("vanetza/in/denm",m)
+    print("published discovery", point)
 
 
 def publish_movement(coords):
     for point in coords:
         publish_location(point)
         print("Published current location:", point)
-        sleep(0.5)
+        sleep(0.3)
+        if stop_loop:
+            return point
     return point
     
 
@@ -128,11 +130,13 @@ def publish_location(point):
 
 
 # coordinates init
-zone = [(37.87400, -25.78800), (37.87400, -25.77800), (37.8640, -25.77800), (37.86400, -25.78800)]
+zone = eval(getenv('ZONE'))
 min_tuple = min(zone, key=lambda tup: tup[1]+tup[0])
 max_tuple = max(zone, key=lambda tup: tup[1]+tup[0])
-cntrs = genCenters(min_tuple[1], min_tuple[0], max_tuple[1], max_tuple[0], 10)
+cntrs = genCenters(min_tuple[1], min_tuple[0], max_tuple[1], max_tuple[0], int(getenv('MAP_PRCSN')))
 sqnc_no = 0
+closest = ()
+stop_loop = False
 #publica no in e recebe no out
 
 # env init
@@ -143,41 +147,47 @@ client.on_message = on_message
 client.message_callback_add("vanetza/out/denm", foreign_discovery)
 client.connect(getenv('BROKER_IP'), 1883, 60)
 
+sleep(8)
+
 # coms init 
-curr_point = eval(getenv('START_POINT'))  # should come from docker-compose, maybe step var
+curr_point = eval(getenv('START_POINT'))
 publish_location(curr_point)
-publish_discovery(curr_point)
+#publish_discovery(curr_point)
 
 # computing init
-sleep(5)
 print("Starting loop...")
-threading.Thread(target=client.loop_forever).start()
+mqtt_thread = threading.Thread(target=client.loop_forever)
+mqtt_thread.start()
 
 # looped task
 while(True):
-    # TODO: handle empty list of coords
     if not cntrs:
-      print("NOT CNTRS must stop")
-      break
-    
+        print("NOT CNTRS must stop")
+        break
+    stop_loop = False
     closest = calculate_closest(curr_point, cntrs)
-    print("Closest point is", closest, "with distance", geodesic(curr_point,closest).m)
-    mov_coords = gen_coords(curr_point, closest, 5)
+    closest_distance = geodesic(curr_point,closest).m
+    print("Closest point is", closest, "with distance", closest_distance)
+    move_ammount = int((closest_distance*int(getenv('MOV_AMNT')))/100)
+    mov_coords = gen_coords(curr_point, closest, move_ammount)
     last_point=publish_movement(mov_coords)
 
-    print("Arrived at closest point:", closest==last_point)
     if closest==last_point:
         publish_discovery(last_point)
-        curr_point = last_point
+    curr_point = last_point
 
     #generate(boat_id)
-    print("Cntrs len:", len(cntrs))
-    sleep(0.5)
+    print("Cntrs left:", len(cntrs))
+    if (len(cntrs)>48 and len(cntrs)<60):
+        # make sure start point was sent
+        publish_discovery(eval(getenv('START_POINT')))
+    #sleep(0.5)
 
-print("escaping loop")
+# make sure start point was sent
+publish_discovery(eval(getenv('START_POINT')))
 client.loop_stop()
-print("escaped loop")
-
+print("Reach end")
+mqtt_thread.join()
 
 #start location, send message that discovered square, update sequence nº, remove discovered point
 #move to first square

@@ -4,7 +4,15 @@ var polyline1, polyline2, polyline3;
 var path1 = [];
 var path2 = [];
 var path3 = [];
-var first = true;
+var prev_lat1 = 0.0;
+var prev_lon1 = 0.0;
+var prev_lat2 = 0.0;
+var prev_lon2 = 0.0;
+var prev_lat3 = 0.0;
+var prev_lon3 = 0.0;
+var first1 = true;
+var first2 = true;
+var first3 = true;
 
 function initMap(){
     map = L.map('map').setView([37.8690, -25.7830], 15);
@@ -46,38 +54,41 @@ function makeRequest() {
 function updateLocations(response) {
     // Perform actions with the received data
     console.log("New data received:", response);
-    console.log(response);
-
-
-    //remove old marker
-    if (marker1) {
-        map.removeLayer(marker1);
-    }
-
-    // for (boat of response.boats){
-    //     if (boat.latitude==0){
-    //         return;
-    //     }
-    // }
-    
-    if(first){
-        marker1 = L.marker([response.boats[0].latitude, response.boats[0].longitude]).addTo(map);
-        marker2 = L.marker([response.boats[1].latitude, response.boats[1].longitude]).addTo(map);
-        marker3 = L.marker([response.boats[2].latitude, response.boats[1].longitude]).addTo(map);
-        first=false;
-    }
 
     if(response.boats[0].latitude!=0){
-
-    path1.push([response.boats[0].latitude, response.boats[0].longitude]);
+        if(first1){
+            marker1 = L.marker([response.boats[0].latitude, response.boats[0].longitude]);
+            first1=false;
+        }
+        if(response.boats[0].latitude !== prev_lat1 || response.boats[0].longitude !== prev_lon1){
+            path1.push([response.boats[0].latitude, response.boats[0].longitude]);
+            prev_lat1=response.boats[0].latitude;
+            prev_lon1=response.boats[0].longitude;
+        }
     }
+
     if(response.boats[1].latitude!=0){
-
-    path2.push([response.boats[1].latitude, response.boats[1].longitude]);
+        if(first2){
+            marker1 = L.marker([response.boats[1].latitude, response.boats[1].longitude]);
+            first2=false;
+        }
+        if(response.boats[1].latitude !== prev_lat2 || response.boats[1].longitude !== prev_lon2){
+            path2.push([response.boats[1].latitude, response.boats[1].longitude]);
+            prev_lat2=response.boats[1].latitude;
+            prev_lon2=response.boats[1].longitude;
+        }
     }
-    if(response.boats[2].latitude!=0){
 
-    path3.push([response.boats[2].latitude, response.boats[2].longitude]);
+    if(response.boats[2].latitude!=0){
+        if(first3){
+            marker1 = L.marker([response.boats[2].latitude, response.boats[2].longitude]);
+            first3=false;
+        }
+        if(response.boats[2].latitude !== prev_lat3 || response.boats[2].longitude !== prev_lon3){
+            path3.push([response.boats[2].latitude, response.boats[2].longitude]);
+            prev_lat3=response.boats[2].latitude;
+            prev_lon3=response.boats[2].longitude;
+        }
     }
 
     
@@ -90,7 +101,7 @@ function updateLocations(response) {
 makeRequest();
 
 // Set the interval for periodic requests 
-setInterval(makeRequest, 400);
+setInterval(makeRequest, 150);
 
 
 window.onload = function() {

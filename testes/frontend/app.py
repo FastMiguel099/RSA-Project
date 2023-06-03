@@ -25,7 +25,7 @@ data = {'boats': [
 def handle_connect(client, userdata, flags, rc):
    if rc == 0:
        print('Connected successfully')
-       mqtt.subscribe("vanetza/out/cam") 
+       mqtt.subscribe("vanetza/out/cam")
    else:
        print('Bad connection. Code:', rc)
 
