@@ -71,7 +71,7 @@ def foreign_discovery(client, userdate, msg):
     lat = message['fields']['denm']["management"]["eventPosition"]["latitude"]
     lon = message['fields']['denm']["management"]["eventPosition"]["longitude"]
     foreign_point = (lon, lat)
-    print("\nForeign discovery:", foreign_point)
+    # print("\nForeign discovery:", foreign_point)
     global closest, stop_loop
 
     if not closest:
@@ -79,7 +79,7 @@ def foreign_discovery(client, userdate, msg):
     if foreign_point==closest:
         print("My current destination has already been discovered !")
         if foreign_point in cntrs:
-        	cntrs.remove(foreign_point)
+            cntrs.remove(foreign_point)
         stop_loop = True
         return
     if foreign_point in cntrs:
@@ -112,7 +112,7 @@ def publish_discovery(point):
 def publish_movement(coords):
     for point in coords:
         publish_location(point)
-        print("Published current location:", point)
+        # print("Published current location:", point)
         sleep(0.3)
         if stop_loop:
             return point
@@ -167,7 +167,7 @@ while(True):
     stop_loop = False
     closest = calculate_closest(curr_point, cntrs)
     closest_distance = geodesic(curr_point,closest).m
-    print("Closest point is", closest, "with distance", closest_distance)
+    # print("Closest point is", closest, "with distance", closest_distance)
     move_ammount = int((closest_distance*int(getenv('MOV_AMNT')))/100)
     mov_coords = gen_coords(curr_point, closest, move_ammount)
     last_point=publish_movement(mov_coords)
@@ -176,40 +176,13 @@ while(True):
         publish_discovery(last_point)
     curr_point = last_point
 
-    #generate(boat_id)
-    print("Cntrs left:", len(cntrs))
+    # print("Cntrs left:", len(cntrs))
     if (len(cntrs)>48 and len(cntrs)<60):
         # make sure start point was sent
         publish_discovery(eval(getenv('START_POINT')))
-    #sleep(0.5)
 
 # make sure start point was sent
 publish_discovery(eval(getenv('START_POINT')))
 client.loop_stop()
 print("Reach end")
 mqtt_thread.join()
-
-#start location, send message that discovered square, update sequence nº, remove discovered point
-#move to first square
-#send message that discovered square, update sequence nº, remove discovered point
-#calculate closest square
-#move to next closest square
-
-
-
-# broker = "172.19.0.2/16"
-# port = 1883
-# topic = "mytopic"
-
-# def on_message(client, userdata, message):
-#     print(f"Received: {message.payload.decode()}")
-
-
-# client = mqtt.Client()
-# #client.on_message = on_message
-# print("hello")
-# #client.connect(broker, port)
-# #client.subscribe(topic)
-#client.loop_forever()
-
-

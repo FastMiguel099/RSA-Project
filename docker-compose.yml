@@ -120,7 +120,7 @@ services:
       - ./frontend/templates:/app/templates
     environment:
       - BROKER_URL=flsk_brk
-      - FLASK_ENV=development
+    #  - FLASK_ENV=development
     ports:
       - 5000:5000
     networks:
@@ -132,8 +132,8 @@ services:
       - boat3_broker
       - flask_broker
     restart: always
-    # logging:
-    #   driver: none
+    logging:
+      driver: none
             
 
   boat1:
@@ -144,7 +144,7 @@ services:
     environment:
       - BOAT_ID=1
       - BROKER_IP=192.168.98.10
-      - START_POINT=-25.7825, 37.8685
+      - START_POINT=-25.7875, 37.8645
       - MOV_AMNT=5
     #image: pub:v1
     networks:
@@ -165,7 +165,7 @@ services:
     environment:
       - BOAT_ID=2
       - BROKER_IP=192.168.98.11
-      - START_POINT=-25.7825, 37.8695
+      - START_POINT=-25.7835, 37.8735
       - MOV_AMNT=5
       #image: sub:v1
     networks:
@@ -186,7 +186,7 @@ services:
     environment:
       - BOAT_ID=3
       - BROKER_IP=192.168.98.12
-      - START_POINT=-25.7835, 37.8695
+      - START_POINT=-25.7785, 37.8645
       - MOV_AMNT=5
     #image: sub:v1
     networks:
